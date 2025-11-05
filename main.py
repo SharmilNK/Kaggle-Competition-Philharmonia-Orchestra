@@ -455,7 +455,7 @@ def prepare_feature_tables(df_subs, df_tck, df_con, df_acc_demo, df_zip, all_acc
 
 
     # Now create interaction features : Based on a customer's donation amount and the average income level of their ZIP code
-    
+    '''
     don_col = acc['amount_donated_lifetime']
     acc_demo2 = acc[['account_id']].copy()
     #   - acc[don_col].fillna(0): replaces missing donation amounts with 0
@@ -480,7 +480,7 @@ def prepare_feature_tables(df_subs, df_tck, df_con, df_acc_demo, df_zip, all_acc
     else:
         # If no donation column is found, create the feature as 0 for all accounts.
         acc_demo2['income_x_donation'] = 0
-    
+    '''
     # From the above features created, select all numeric features to keep
     keep_cols = ['account_id']
     for c in ['pop','wages','taxreturns','zip_avg_wage_per_return','zip_taxreturns_per_capita','zip_wages_per_capita','lat','lon']:
@@ -736,14 +736,14 @@ def build_train_matrix(master, df_train, chosen_features):
 
     # compute medians -on training data only
     train_idx = X['account_id'].isin(df_train['account_id'])
-    train_medians = X.loc[train_idx, chosen_features].median(numeric_only=True)
+    train_medians = X.loc[train_idx, chosen].median(numeric_only=True)
     #    Using DataFrame.mode() which may return multiple rows; take first row if present.
     train_modes_df = X.loc[train_idx, chosen].mode(dropna=True)
     if not train_modes_df.empty:
         train_modes = train_modes_df.iloc[0]
     else:
         # if no mode could be computed (all NaN), create a Series of NaNs aligned to chosen
-        import pandas as _pd
+        
         train_modes = _pd.Series([_pd.NA] * len(chosen), index=chosen)
 
    # Impute chosen_features in X using training medians where numeric; for non-numeric fallback to mode
@@ -767,7 +767,7 @@ def build_train_matrix(master, df_train, chosen_features):
     return X_model, y, train_medians, train_modes
 
 
-def train_cv_ensemble(X, y, params=None, n_folds=5, random_state=0):
+def train_cv_ensemble(X, y, params=None, n_folds=5, random_state=42):
     """
     Train an ensemble of LightGBM + Ridge using Stratified K-Fold CV.
     For each fold:
@@ -790,7 +790,7 @@ def train_cv_ensemble(X, y, params=None, n_folds=5, random_state=0):
             'metric': 'auc',
             'boosting_type': 'gbdt',
             'n_estimators': 10000,
-            'learning_rate': 0.02,
+            'learning_rate': 0.005,
             'num_leaves': 31,
             'max_depth': 6,
             'min_child_samples': 20,
@@ -828,10 +828,7 @@ def train_cv_ensemble(X, y, params=None, n_folds=5, random_state=0):
     scalers = []           # per-fold scalers (fit on each fold's train)
     oof_preds = np.zeros(X_num.shape[0])
     fold_scores = []
-    model_lgb = lgb.train(params, lgb_train)
-
-
-    
+        
     for fold, (tr_idx, val_idx) in enumerate(skf.split(X_num, y), 1):
         # split
         X_tr = X_num.iloc[tr_idx].copy()
@@ -1026,7 +1023,7 @@ def main ():
     lgb_models, ridge_models, scalers, scaler_full, fold_scores, cv_score, oof_preds = train_cv_ensemble(X_model, y, params=None, n_folds=5, random_state=42)
     
     
-    #Should you add more folds? No. The current 5 folds are Highly consistent .More folds won't significantly improve performance, just add training time.
+    #cdShould you add more folds? No. The current 5 folds are Highly consistent .More folds won't significantly improve performance, just add training time.
 
     # Prepare test features: master_all holds features for all accounts; we need test.account ids
     df_test['account_id'] = df_test['id'].astype(str).str.strip()
